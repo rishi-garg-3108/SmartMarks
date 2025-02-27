@@ -11,7 +11,7 @@ import pdfkit
 from PyPDF2 import PdfReader
 from docx import Document
 
-os.environ['OPENAI_API_KEY'] = "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"
+os.environ['OPENAI_API_KEY'] = "your-api-key"
 os.environ['OPENAI_MODEL_NAME'] = 'gpt-4o'
 
 def encode_image(image_path):
