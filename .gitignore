@@ -4,8 +4,12 @@
 .pnp.js
 .yarn/install-state.gz
 
+.env.local
+config.py
 # testing
 /coverage
+__pycache__/
+*.pyc
 
 # next.js
 /.next/

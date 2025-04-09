@@ -10,13 +10,15 @@ from fpdf import FPDF
 import pdfkit
 from PyPDF2 import PdfReader
 from docx import Document
+import config
 
-os.environ['OPENAI_API_KEY'] = "your-api-key"
+os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
 os.environ['OPENAI_MODEL_NAME'] = 'gpt-4o'
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
+    
 
 def extract_text_from_image(image_path):
     image_base64 = f"data:image/jpeg;base64,{encode_image(image_path)}"
@@ -57,7 +59,6 @@ def correct_spelling_grammar(text):
     print("DEBUG: Parsed Errors:", errors)  # Debugging
 
     return errors  # Ensure it's a list of lists
-
 
 def mark_text(text, df):
     corrections = df.to_dict(orient='records')
