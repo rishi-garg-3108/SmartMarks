@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
+import uuid
 import pandas as pd
 from backend_handwriting import extract_text_from_image, correct_spelling_grammar, mark_text, create_pdf, pdf_to_word
 from fpdf import FPDF
@@ -10,9 +11,14 @@ from PIL import Image
 app = Flask(__name__)
 CORS(app)
 
-PDF_DIRECTORY = "generated_pdfs"  # Ensure it matches where PDFs are saved
-UPLOAD_FOLDER = 'uploads'
-PDF_WORD_DIRECTORY = "documents"
+# Ensure absolute path for uploads
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PDF_DIRECTORY = os.path.join(BASE_DIR, "generated_pdfs")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+PDF_WORD_DIRECTORY = os.path.join(BASE_DIR, "documents")
+
+# Create directories if they don't exist
+os.makedirs(PDF_DIRECTORY, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PDF_WORD_DIRECTORY, exist_ok=True)
 
@@ -22,17 +28,36 @@ stored_results = []
 def download_pdf(filename):
     file_path = os.path.join(PDF_DIRECTORY, filename)
 
-    # ✅ Ensure the file exists before serving
     if not os.path.exists(file_path):
-        print(f"❌ Error: PDF file not found - {file_path}")  # Debugging
+        print(f"❌ Error: PDF file not found - {file_path}")
         return jsonify({'error': 'File not found'}), 404
 
-    print(f"✅ Serving PDF: {file_path}")  # Debugging
+    print(f"✅ Serving PDF: {file_path}")
     return send_from_directory(PDF_DIRECTORY, filename, as_attachment=False)
 
 @app.route('/uploads/<path:filename>', methods=['GET'])
 def serve_image(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    print(f"Requested filename: {filename}")
+    print(f"Uploads folder: {UPLOAD_FOLDER}")
+    
+    full_path = os.path.join(UPLOAD_FOLDER, filename)
+    print(f"Full file path attempted: {full_path}")
+    
+    try:
+        files_in_dir = os.listdir(UPLOAD_FOLDER)
+        print("Files in uploads directory:", files_in_dir)
+    except Exception as e:
+        print(f"Error listing directory: {e}")
+    
+    if not os.path.exists(full_path):
+        print(f"❌ File does not exist: {full_path}")
+        return jsonify({'error': 'File not found'}), 404
+    
+    try:
+        return send_from_directory(UPLOAD_FOLDER, filename)
+    except Exception as e:
+        print(f"Error serving file: {e}")
+        return jsonify({'error': 'Could not serve file'}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -53,12 +78,18 @@ def upload_files():
 
     extracted_text_list = []
     for file in files:
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        # Generate a unique filename while preserving the original extension
+        file_ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_ext}"
+        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
+        # Save the file
         file.save(filepath)
-        print(f"✅ Saved file: {filepath}")
+        print(f"✅ Saved file: {filepath} as {unique_filename}")
 
+        # Extract text from the image
         extracted_text = extract_text_from_image(filepath)
-        extracted_text_list.append({'image': file.filename, 'text': extracted_text})
+        extracted_text_list.append({'image': unique_filename, 'text': extracted_text})
 
     final_results = []
     for item in extracted_text_list:
@@ -97,7 +128,7 @@ def upload_files():
         final_results.append(result)
     
     stored_results = final_results
-    print("DEBUG: Final stored results:", stored_results)  #  Added Debugging
+    print("DEBUG: Final stored results:", stored_results)
     return jsonify({'studentName': student_name, 'studentClass': student_class, 'subject': subject, 'results': final_results})
 
 @app.route('/get_results', methods=['GET'])
@@ -107,13 +138,11 @@ def get_results():
         return jsonify({'error': 'No results found'}), 404
     return jsonify({'results': stored_results})
 
-from PIL import Image
-
 @app.route('/generate_pdf', methods=['POST'])
 def generate_pdf():
     data = request.get_json()
     
-    print("📥 Received PDF generation request:", data)  # Debug log
+    print("📥 Received PDF generation request:", data)
 
     if not data:
         print("❌ Error: No data received for PDF generation")
@@ -133,20 +162,20 @@ def generate_pdf():
         for result in data['results']:
             error_table_data = result.get('errorTable', [])
 
-            # ✅ Ensure error_df is always a valid DataFrame
+            # Ensure error_df is always a valid DataFrame
             if isinstance(error_table_data, list) and len(error_table_data) > 0:
                 error_df = pd.DataFrame(error_table_data)
             else:
                 error_df = pd.DataFrame(columns=["Incorrect Text", "Correct Text", "Error Category"])
 
-            # ✅ Explicitly check for an empty DataFrame
+            # Explicitly check for an empty DataFrame
             if error_df.empty:
                 print("⚠️ No errors found, proceeding with an empty table.")
 
-            # ✅ Validate image before adding to PDF
+            # Validate image before adding to PDF
             image_path = result.get('image', '')
             if image_path:
-                full_image_path = os.path.join("uploads", image_path)  # Ensure correct path
+                full_image_path = os.path.join(UPLOAD_FOLDER, image_path)
                 
                 # Check if image file exists
                 if not os.path.exists(full_image_path):
@@ -156,21 +185,21 @@ def generate_pdf():
                 # Check if it's a valid image
                 try:
                     with Image.open(full_image_path) as img:
-                        img.verify()  # Validate the image format
+                        img.verify()
                 except Exception as e:
                     print(f"❌ Invalid image file: {full_image_path} - {e}")
-                    continue  # Skip this result if image is corrupted
+                    continue
 
             print(f"✅ Processing image for PDF: {full_image_path}")
 
             processed_results.append({
                 'image': full_image_path,
                 'extractedText': result.get('extractedText', 'No extracted text'),
-                'errorTable': error_df.to_dict(orient='records'),  # ✅ Convert DataFrame to list of dictionaries
+                'errorTable': error_df.to_dict(orient='records'),
                 'markedText': result.get('markedText', 'No marked text')
             })
 
-        # ✅ Generate a single PDF containing all results
+        # Generate a single PDF containing all results
         if not processed_results:
             return jsonify({'error': 'No valid results to generate PDF'}), 400
 
@@ -184,8 +213,6 @@ def generate_pdf():
     except Exception as e:
         print("❌ Error generating PDF:", str(e))
         return jsonify({'error': 'Failed to generate PDF', 'message': str(e)}), 500
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -5,8 +5,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../utils/translations";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
+import EmailForm from "../components/EmailForm";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -37,6 +36,7 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<{[key: number]: boolean}>({});
 
   useEffect(() => {
     async function fetchResults() {
@@ -103,56 +103,75 @@ export default function ResultsPage() {
     }
   };
 
+  const handleImageError = (index: number) => {
+    setImageErrors(prev => ({
+      ...prev,
+      [index]: true
+    }));
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8 text-primary">{t.resultsTitle}</h1>
 
-        <Button onClick={handleGeneratePDF} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700" disabled={isGeneratingPDF}>
-          {isGeneratingPDF ? "Generating PDF..." : "Export to PDF"}
-        </Button>
+        <div className="flex flex-wrap gap-4 mb-8">
+          <Button 
+            onClick={handleGeneratePDF} 
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700" 
+            disabled={isGeneratingPDF}
+          >
+            {isGeneratingPDF ? "Generating PDF..." : "Export to PDF"}
+          </Button>
 
-        {pdfUrl && (
-                  <div className="mt-4 flex gap-4">
-                    <a
-                      href={pdfUrl.replace("generated_pdfs/", "")} // ✅ Ensure correct path
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                    >
-                      Preview PDF
-                    </a>
-                    <a
-                      href={pdfUrl.replace("generated_pdfs/", "")} // ✅ Ensure correct path
-                      download
-                      className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-                    >
-                      Download PDF
-                    </a>
-                  </div>
-                )}
-
+          {pdfUrl && (
+            <>
+              <a
+                href={pdfUrl.replace("generated_pdfs/", "")} 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                Preview PDF
+              </a>
+              <a
+                href={pdfUrl.replace("generated_pdfs/", "")} 
+                download
+                className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+              >
+                Download PDF
+              </a>
+            </>
+          )}
+        </div>
 
         {results.map((result, index) => (
           <div key={index} className="result-container my-6 p-4 border border-gray-300 rounded-md shadow-md">
             <h3 className="text-lg font-bold mb-2">Extracted Text for Image {index + 1}:</h3>
 
-            {result.image && (
+            {result.image && !imageErrors[index] && (
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Uploaded Image:</h3>
-                <Image
+                <img
                   src={`http://127.0.0.1:5000/uploads/${result.image}`}
                   alt={`Uploaded Image ${index + 1}`}
-                  width={400}
-                  height={400}
-                  className="border border-gray-300 rounded-md shadow-md"
-                  onError={(e) => console.error("Image failed to load:", e)}
+                  className="max-w-[400px] max-h-[400px] border border-gray-300 rounded-md shadow-md object-contain"
+                  onError={() => {
+                    console.error('Image failed to load:', result.image);
+                    handleImageError(index);
+                  }}
                 />
               </div>
             )}
 
-            <p className="text-black p-3 bg-gray-100 rounded-md">{result.extractedText}</p>
+            {(imageErrors[index] || !result.image) && (
+              <div className="mt-4 p-4 bg-yellow-100 text-yellow-800 rounded">
+                <p>Image could not be loaded. Filename: {result.image}</p>
+              </div>
+            )}
+
+            <p className="text-black p-3 bg-gray-100 rounded-md mt-4">{result.extractedText}</p>
 
             {result.errorTable.length > 0 && (
               <div className="mt-4">
@@ -167,7 +186,10 @@ export default function ResultsPage() {
                   </thead>
                   <tbody>
                     {result.errorTable.map((error, i) => (
-                      <tr key={i} className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-200 transition-all duration-150`}>
+                      <tr 
+                        key={i} 
+                        className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-200 transition-all duration-150`}
+                      >
                         <td className="px-4 py-3 font-bold text-red-600">{error.incorrectText}</td>
                         <td className="px-4 py-3 font-semibold text-green-600">{error.correctText}</td>
                         <td className="px-4 py-3 font-semibold text-blue-600 flex items-center gap-2">
@@ -181,6 +203,17 @@ export default function ResultsPage() {
             )}
           </div>
         ))}
+
+        {/* Email Form Section */}
+        <div className="mt-12 border-t pt-8">
+          <h2 className="text-2xl font-bold mb-6 text-center text-primary">Send Report by Email</h2>
+          <div className="max-w-2xl mx-auto">
+            <p className="text-center mb-6 text-gray-600">
+              Use the form below to send this report to the student's email address.
+            </p>
+            <EmailForm />
+          </div>
+        </div>
       </main>
       <Footer />
     </div>
