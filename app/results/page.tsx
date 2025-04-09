@@ -21,6 +21,7 @@ interface ResultType {
   extractedText: string;
   errorTable: ErrorTableEntry[];
   image: string;
+  // If you have more fields (e.g. "markedText"), include them here
 }
 
 export default function ResultsPage() {
@@ -37,6 +38,8 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  // New loading flags for retries:
+  const [retryingIndex, setRetryingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchResults() {
@@ -48,7 +51,7 @@ export default function ResultsPage() {
         console.log("DEBUG: API Response from /get_results:", data);
 
         if (data.results && data.results.length > 0) {
-          const transformedResults = data.results.map((result) => ({
+          const transformedResults = data.results.map((result: any) => ({
             ...result,
             errorTable: result.errorTable.map((error: any) => ({
               incorrectText: error["Incorrect Text"],
@@ -71,6 +74,7 @@ export default function ResultsPage() {
     fetchResults();
   }, []);
 
+  // Existing function for generating PDF
   const handleGeneratePDF = async () => {
     setIsGeneratingPDF(true);
     try {
@@ -103,41 +107,100 @@ export default function ResultsPage() {
     }
   };
 
+  // 🔥 NEW: Retry function for a single image
+  const handleRetry = async (index: number) => {
+    // We want to reprocess only results[index]
+    // We'll send the image name to the backend
+    const targetImage = results[index].image;
+    
+    setRetryingIndex(index); // show a spinner or "Retrying..." on that item
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/retry_image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image: targetImage }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Retry failed with status ${response.status}`);
+      }
+      const updatedResult = await response.json();
+      console.log("Retry success for image:", targetImage, updatedResult);
+
+      // We'll update just that one item in `results`
+      setResults((prev) =>
+        prev.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                extractedText: updatedResult.extractedText,
+                errorTable: updatedResult.errorTable.map((err: any) => ({
+                  incorrectText: err["Incorrect Text"],
+                  correctText: err["Correct Text"],
+                  errorCategory: err["Error Category"],
+                })),
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("❌ Error retrying image:", error);
+      alert("Retry failed! Check console for details.");
+    } finally {
+      setRetryingIndex(null);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8 text-primary">{t.resultsTitle}</h1>
 
-        <Button onClick={handleGeneratePDF} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700" disabled={isGeneratingPDF}>
+        {/* Export to PDF Button */}
+        <Button
+          onClick={handleGeneratePDF}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          disabled={isGeneratingPDF}
+        >
           {isGeneratingPDF ? "Generating PDF..." : "Export to PDF"}
         </Button>
 
+        {/* Preview/Download PDF Links */}
         {pdfUrl && (
-                  <div className="mt-4 flex gap-4">
-                    <a
-                      href={pdfUrl.replace("generated_pdfs/", "")} // ✅ Ensure correct path
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                    >
-                      Preview PDF
-                    </a>
-                    <a
-                      href={pdfUrl.replace("generated_pdfs/", "")} // ✅ Ensure correct path
-                      download
-                      className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-                    >
-                      Download PDF
-                    </a>
-                  </div>
-                )}
+          <div className="mt-4 flex gap-4">
+            <a
+              href={pdfUrl.replace("generated_pdfs/", "")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            >
+              Preview PDF
+            </a>
+            <a
+              href={pdfUrl.replace("generated_pdfs/", "")}
+              download
+              className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            >
+              Download PDF
+            </a>
+          </div>
+        )}
 
-
+        {/* Displaying Each Image and Its Results */}
         {results.map((result, index) => (
-          <div key={index} className="result-container my-6 p-4 border border-gray-300 rounded-md shadow-md">
-            <h3 className="text-lg font-bold mb-2">Extracted Text for Image {index + 1}:</h3>
+          <div
+            key={index}
+            className="result-container my-6 p-4 border border-gray-300 rounded-md shadow-md"
+          >
+            <h3 className="text-lg font-bold mb-2">
+              Extracted Text for Image {index + 1}:
+            </h3>
 
+            {/* Uploaded Image */}
             {result.image && (
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Uploaded Image:</h3>
@@ -152,8 +215,12 @@ export default function ResultsPage() {
               </div>
             )}
 
-            <p className="text-black p-3 bg-gray-100 rounded-md">{result.extractedText}</p>
+            {/* Extracted Text */}
+            <p className="text-black p-3 bg-gray-100 rounded-md">
+              {result.extractedText}
+            </p>
 
+            {/* Error Analysis */}
             {result.errorTable.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Error Analysis:</h3>
@@ -167,11 +234,21 @@ export default function ResultsPage() {
                   </thead>
                   <tbody>
                     {result.errorTable.map((error, i) => (
-                      <tr key={i} className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-200 transition-all duration-150`}>
-                        <td className="px-4 py-3 font-bold text-red-600">{error.incorrectText}</td>
-                        <td className="px-4 py-3 font-semibold text-green-600">{error.correctText}</td>
+                      <tr
+                        key={i}
+                        className={`${
+                          i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        } hover:bg-gray-200 transition-all duration-150`}
+                      >
+                        <td className="px-4 py-3 font-bold text-red-600">
+                          {error.incorrectText}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-green-600">
+                          {error.correctText}
+                        </td>
                         <td className="px-4 py-3 font-semibold text-blue-600 flex items-center gap-2">
-                          {error.errorCategory === "Spelling" ? "🔠" : "📖"} {error.errorCategory}
+                          {error.errorCategory === "Spelling" ? "🔠" : "📖"}{" "}
+                          {error.errorCategory}
                         </td>
                       </tr>
                     ))}
@@ -179,6 +256,17 @@ export default function ResultsPage() {
                 </table>
               </div>
             )}
+
+            {/* 🔥 NEW: Retry Button for this image */}
+            <div className="mt-4">
+              <Button
+                onClick={() => handleRetry(index)}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+                disabled={retryingIndex === index}
+              >
+                {retryingIndex === index ? "Retrying..." : "Retry"}
+              </Button>
+            </div>
           </div>
         ))}
       </main>
