@@ -36,3 +36,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#cache
+backend/__pycache__
+
+#folders
+backend/uploads
+backend/generated_pdfs
