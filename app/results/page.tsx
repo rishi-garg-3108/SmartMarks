@@ -109,6 +109,12 @@ export default function ResultsPage() {
       [index]: true
     }));
   };
+  const handleGetImprovements = (text: string) => {
+    // Encode the text to safely include it in a URL
+    const encodedText = encodeURIComponent(text);
+    // Navigate to the improvements page with the text as a parameter
+    router.push(`/improvements?text=${encodedText}`);
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -201,8 +207,17 @@ export default function ResultsPage() {
                 </table>
               </div>
             )}
+            <div className="mt-4">
+          <Button 
+            onClick={() => handleGetImprovements(result.extractedText)}
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            >
+            Get Improvement Suggestions
+        </Button>
+            </div>
           </div>
         ))}
+        
 
         {/* Email Form Section */}
         <div className="mt-12 border-t pt-8">

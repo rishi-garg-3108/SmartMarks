@@ -7,6 +7,9 @@ from backend_handwriting import extract_text_from_image, correct_spelling_gramma
 from fpdf import FPDF
 import re
 from PIL import Image
+# Import all required functions from text_improvement
+from text_improvement import get_text_improvements, analyze_text_complexity, generate_improvement_suggestions
+
 
 app = Flask(__name__)
 CORS(app)
@@ -213,6 +216,55 @@ def generate_pdf():
     except Exception as e:
         print("❌ Error generating PDF:", str(e))
         return jsonify({'error': 'Failed to generate PDF', 'message': str(e)}), 500
+    
+
+
+
+
+
+@app.route('/get_improvements', methods=['POST'])
+def get_improvements():
+    data = request.get_json()
+    
+    if not data or 'text' not in data:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    text = data['text']
+    
+    try:
+        print(f"Analyzing text: {text[:50]}...")  # Print first 50 chars of text
+        
+        # First try just the complexity metrics
+        complexity_metrics = analyze_text_complexity(text)
+        print("Complexity metrics calculated successfully")
+        
+        # Then try the GPT suggestions
+        try:
+            suggestions_json = generate_improvement_suggestions(text)
+            print("Improvement suggestions generated successfully")
+        except Exception as e:
+            print(f"Error generating suggestions: {str(e)}")
+            suggestions_json = json.dumps({
+                "style_improvements": ["Error generating style suggestions"],
+                "vocabulary_enhancements": [],
+                "structure_suggestions": ["Error generating structure suggestions"],
+                "strengths": ["Text analysis unavailable"]
+            })
+        
+        # Combine results
+        improvements = {
+            "complexity_metrics": complexity_metrics,
+            "improvement_suggestions": suggestions_json
+        }
+        
+        return jsonify({
+            'text': text,
+            'improvements': improvements
+        })
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Error generating improvements: {error_msg}")
+        return jsonify({'error': f'Failed to generate improvements: {error_msg}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
