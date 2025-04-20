@@ -113,6 +113,13 @@ export default function ResultsPage() {
       setIsGeneratingPDF(false);
     }
   };
+ // 🔥 NEW: improvements function for a single image
+ const handleGetImprovements = (text: string) => {
+  // Encode the text to safely include it in a URL
+  const encodedText = encodeURIComponent(text);
+  // Navigate to the improvements page with the text as a parameter
+  router.push(`/improvements?text=${encodedText}`);
+};
 
   // Track individual image loading errors
   const handleImageError = (index: number) => {
@@ -122,20 +129,13 @@ export default function ResultsPage() {
     }));
   };
 
-   // 🔥 NEW: improvements function for a single image
-  const handleGetImprovements = (text: string) => {
-    // Encode the text to safely include it in a URL
-    const encodedText = encodeURIComponent(text);
-    // Navigate to the improvements page with the text as a parameter
-    router.push(`/improvements?text=${encodedText}`);
-  };
-
+  
   // 🔥 NEW: Retry function for a single image
   const handleRetry = async (index: number) => {
     // The image to reprocess
     const targetImage = results[index].image;
     setRetryingIndex(index); // show "Retrying..." on that item
-
+    
     try {
       const response = await fetch("http://127.0.0.1:5000/retry_image", {
         method: "POST",
