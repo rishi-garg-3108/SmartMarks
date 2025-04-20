@@ -2,8 +2,6 @@ import openai
 import os
 import config
 import re
-import nltk
-from nltk.tokenize import sent_tokenize, word_tokenize
 from collections import Counter
 
 # Set up OpenAI API key - use the same key you're using for handwriting analysis
