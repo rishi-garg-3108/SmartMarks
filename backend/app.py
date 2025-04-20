@@ -7,12 +7,12 @@ from backend_handwriting import extract_text_from_image, correct_spelling_gramma
 from fpdf import FPDF
 import re
 from PIL import Image
-# Import all required functions from text_improvement
 from text_improvement import get_text_improvements, analyze_text_complexity, generate_improvement_suggestions
 
 
 app = Flask(__name__)
 CORS(app)
+
 
 # Ensure absolute path for uploads
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -141,6 +141,71 @@ def get_results():
         return jsonify({'error': 'No results found'}), 404
     return jsonify({'results': stored_results})
 
+
+@app.route('/retry_image', methods=['POST'])
+def retry_image():
+    data = request.get_json()
+    if not data or 'image' not in data:
+        return jsonify({'error': 'No image provided'}), 400
+
+    image_filename = data['image']
+    full_path = os.path.join(UPLOAD_FOLDER, image_filename)
+
+    if not os.path.exists(full_path):
+        return jsonify({'error': 'File not found on server'}), 404
+
+    # 1) Re-run extraction
+    extracted_text = extract_text_from_image(full_path)
+
+    # 2) Re-run spelling/grammar checks
+    errors = correct_spelling_grammar(extracted_text)
+
+    print("DEBUG: errors after processing:", errors)
+
+    # 3) Convert 'errors' into a Pandas DataFrame if valid
+    if isinstance(errors, str):
+        # The model may return a string with lines like "word -> correction -> category"
+        errors = [
+            line.split("->") 
+            for line in errors.splitlines() 
+            if "->" in line and len(line.split("->")) == 3
+        ]
+
+    if (
+        isinstance(errors, list) 
+        and len(errors) > 0 
+        and all(isinstance(entry, list) and len(entry) == 3 for entry in errors)
+    ):
+        # Remove leading numbers or fix categories, just like in /upload
+        for entry in errors:
+            # Example: remove leading numbers from the first field (similar to /upload)
+            entry[0] = re.sub(r'^\d+\.\s*', '', entry[0])
+            
+            # Standardize error categories
+            # "Spelling" if 'spell' in the category, else "Grammar"
+            entry[2] = 'Spelling' if 'spell' in entry[2].lower() else 'Grammar'
+
+        # Finally create the DataFrame named df
+        df = pd.DataFrame(errors, columns=["Incorrect Text", "Correct Text", "Error Category"])
+    else:
+        print("❌ ERROR: Invalid format received for errors! Empty DataFrame will be used.")
+        df = pd.DataFrame(columns=["Incorrect Text", "Correct Text", "Error Category"])
+
+    print("DEBUG: Final DataFrame for errors:\n", df)
+
+    # 4) Mark text if you do that in your code
+    marked_text = mark_text(extracted_text, df)
+
+    # 5) Build the JSON response
+    updated_result = {
+        "extractedText": extracted_text,
+        "errorTable": df.to_dict(orient="records"),
+        "markedText": marked_text
+    }
+
+    return jsonify(updated_result)
+
+
 @app.route('/generate_pdf', methods=['POST'])
 def generate_pdf():
     data = request.get_json()
@@ -216,11 +281,6 @@ def generate_pdf():
     except Exception as e:
         print("❌ Error generating PDF:", str(e))
         return jsonify({'error': 'Failed to generate PDF', 'message': str(e)}), 500
-    
-
-
-
-
 
 @app.route('/get_improvements', methods=['POST'])
 def get_improvements():
@@ -265,6 +325,8 @@ def get_improvements():
         error_msg = str(e)
         print(f"❌ Error generating improvements: {error_msg}")
         return jsonify({'error': f'Failed to generate improvements: {error_msg}'}), 500
+
+        
 
 if __name__ == '__main__':
     app.run(debug=True)
