@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+
 export default function Header() {
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
@@ -46,6 +47,12 @@ export default function Header() {
             <li>
               <Link href="#" className="text-foreground hover:text-primary">
                 {t.pricing}
+              </Link>
+            </li>
+                             {/* Add the improvements link here */}
+            <li>
+              <Link href="/improvements" className="text-foreground hover:text-primary">
+          Improvements
               </Link>
             </li>
           </ul>

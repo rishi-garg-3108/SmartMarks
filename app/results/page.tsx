@@ -122,6 +122,14 @@ export default function ResultsPage() {
     }));
   };
 
+   // 🔥 NEW: improvements function for a single image
+  const handleGetImprovements = (text: string) => {
+    // Encode the text to safely include it in a URL
+    const encodedText = encodeURIComponent(text);
+    // Navigate to the improvements page with the text as a parameter
+    router.push(`/improvements?text=${encodedText}`);
+  };
+
   // 🔥 NEW: Retry function for a single image
   const handleRetry = async (index: number) => {
     // The image to reprocess
@@ -276,6 +284,16 @@ export default function ResultsPage() {
                 </table>
               </div>
             )}
+            <div className="mt-4">
+
+            {/* 🔥 NEW: Improvement Button */}
+          <Button 
+            onClick={() => handleGetImprovements(result.extractedText)}
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            >
+            Get Improvement Suggestions
+        </Button>
+            </div>
 
             {/* 🔥 NEW: Retry Button */}
             <div className="mt-4">
