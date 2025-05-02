@@ -325,6 +325,80 @@ def get_improvements():
         error_msg = str(e)
         print(f"❌ Error generating improvements: {error_msg}")
         return jsonify({'error': f'Failed to generate improvements: {error_msg}'}), 500
+    
+# ----------  Export Improvements Report to PDF  ----------
+@app.route("/improvements_pdf", methods=["POST"])
+def improvements_pdf():
+    import json, time, pdfkit   # local import is okay if not at top
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    text         = data.get("text", "")
+    improvements = data.get("improvements", {})
+    metrics      = improvements.get("complexity_metrics", {})
+    raw_sugg     = improvements.get("improvement_suggestions", "{}")
+
+    try:
+        suggestions = raw_sugg if isinstance(raw_sugg, dict) else json.loads(raw_sugg)
+    except Exception as e:
+        print("❌ Failed to parse suggestions:", e)
+        suggestions = {}
+
+    # ---------- Build HTML report ----------
+    html  = "<html><body style='font-family:Arial;'>"
+    html += "<h1>Text Improvement Report</h1>"
+
+    # original text
+    html += "<h2>Original Text</h2>"
+    html += f"<p>{text.replace(chr(10), '<br>')}</p>"
+
+    # metrics
+    html += "<h2>Complexity Metrics</h2><ul>"
+    html += f"<li>Word Count: {metrics.get('word_count','–')}</li>"
+    html += f"<li>Sentence Count: {metrics.get('sentence_count','–')}</li>"
+    html += f"<li>Avg. Words / Sentence: {metrics.get('avg_words_per_sentence','–')}</li>"
+    html += f"<li>Avg. Word Length: {metrics.get('avg_word_length','–')}</li>"
+    html += f"<li>Vocabulary Diversity: {metrics.get('vocabulary_diversity','–')}%</li>"
+    html += "</ul>"
+
+    # helper to build <ul><li>…</li></ul>
+    def build_list(title: str, items):
+        out = f"<h2>{title}</h2><ul>"
+        for itm in items:
+            out += f"<li>{itm}</li>"
+        out += "</ul>"
+        return out
+
+    html += build_list("Strengths", suggestions.get("strengths", []))
+    html += build_list("Style Improvements", suggestions.get("style_improvements", []))
+
+    # vocabulary enhancements
+    vocab = suggestions.get("vocabulary_enhancements", [])
+    html += "<h2>Vocabulary Enhancements</h2><ul>"
+    for entry in vocab:
+        original    = entry.get("original", "")
+        alternatives = ", ".join(entry.get("suggestions", []))
+        html += f"<li><b>{original}</b> → {alternatives}</li>"
+    html += "</ul>"
+
+    html += build_list("Structure Suggestions", suggestions.get("structure_suggestions", []))
+    html += "</body></html>"
+
+    # ---------- Produce PDF ----------
+    ts        = int(time.time())
+    filename  = f"improvement_{ts}.pdf"
+    pdf_path  = os.path.join(PDF_DIRECTORY, filename)
+
+    try:
+        pdfkit.from_string(html, pdf_path, options={"enable-local-file-access": ""})
+    except Exception as e:
+        print("❌ pdfkit error:", e)
+        return jsonify({"error": "Failed to create PDF"}), 500
+
+    return jsonify({"pdfPath": filename})
+
 
         
 
