@@ -8,6 +8,7 @@ from fpdf import FPDF
 import re
 from PIL import Image
 from text_improvement import get_text_improvements, analyze_text_complexity, generate_improvement_suggestions
+import json, time, pdfkit
 
 
 app = Flask(__name__)
@@ -329,7 +330,7 @@ def get_improvements():
 # ----------  Export Improvements Report to PDF  ----------
 @app.route("/improvements_pdf", methods=["POST"])
 def improvements_pdf():
-    import json, time, pdfkit   # local import is okay if not at top
+       # local import is okay if not at top
 
     data = request.get_json()
     if not data:
