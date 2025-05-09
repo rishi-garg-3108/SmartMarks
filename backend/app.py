@@ -9,6 +9,7 @@ import re
 from PIL import Image
 from text_improvement import get_text_improvements, analyze_text_complexity, generate_improvement_suggestions
 import json, time, pdfkit
+import json, time, pdfkit
 
 
 app = Flask(__name__)

@@ -187,36 +187,14 @@ export default function ImprovementsPage() {
                           <span className="font-medium">Sentence Count:</span>{' '}
                           {improvements.complexity_metrics.sentence_count}
                         </li>
-                        <li>
-                          <span className="font-medium">
-                            Avg. Words per Sentence:
-                          </span>{' '}
-                          {improvements.complexity_metrics.avg_words_per_sentence}
-                        </li>
-                        <li>
-                          <span className="font-medium">
-                            Avg. Word Length:
-                          </span>{' '}
-                          {improvements.complexity_metrics.avg_word_length}{' '}
-                          characters
-                        </li>
-                        <li>
-                          <span className="font-medium">
-                            Vocabulary Diversity:
-                          </span>{' '}
-                          {
-                            improvements.complexity_metrics
-                              .vocabulary_diversity
-                          }
-                          %
-                        </li>
+                                                               
                         <li>
                           <span className="font-medium">Common Words:</span>{' '}
                           {improvements.complexity_metrics.common_words.map(
                             ([word, count]) => (
                               <span
                                 key={word}
-                                className="inline-block px-2 py-1 mr-2 mt-1 bg-gray-100 rounded-md text-sm"
+                                className="inline-block px-2 py-1 mr-2 mt-1 bg-black rounded-md text-sm text-white"
                               >
                                 {word} ({count})
                               </span>
@@ -229,9 +207,9 @@ export default function ImprovementsPage() {
                     {/* Suggestions cards (render only if parsed ok) */}
                     {parsedSuggestions && (
                       <>
-                        {/* Strengths */}
+                      {/* Strengths Card */}
                         <Card className="p-4 mb-4 bg-green-50">
-                          <h3 className="text-lg font-medium mb-2 text-green-800">
+                          <h3 className="text-lg font-medium mb-2 text-white bg-green-800 p-2 rounded">
                             Strengths
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
@@ -244,65 +222,72 @@ export default function ImprovementsPage() {
                                 ),
                               )
                             ) : (
-                              <li>No strengths data available</li>
+                              <li className="text-green-700">No strengths data available</li>
                             )}
                           </ul>
                         </Card>
 
                         {/* Style Improvements */}
-                        <Card className="p-4 mb-4">
-                          <h3 className="text-lg font-medium mb-2 text-blue-800">
+                        <Card className="p-4 mb-4 bg-blue-50">
+                          <h3 className="text-lg font-medium mb-2 text-white bg-blue-800 p-2 rounded">
                             Style Improvements
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
                             {parsedSuggestions.style_improvements?.length ? (
                               parsedSuggestions.style_improvements.map(
-                                (s, i) => <li key={i}>{s}</li>,
+                                (s, i) => (
+                                  <li key={i} className="text-blue-700">
+                                    {s}
+                                  </li>
+                                ),
                               )
                             ) : (
-                              <li>No style improvements available</li>
+                              <li className="text-blue-700">No style improvements available</li>
                             )}
                           </ul>
                         </Card>
-
-                        {/* Vocabulary Enhancements */}
-                        <Card className="p-4 mb-4">
-                          <h3 className="text-lg font-medium mb-2 text-purple-800">
-                            Vocabulary Enhancements
-                          </h3>
-                          {parsedSuggestions.vocabulary_enhancements?.length ? (
-                            <ul className="space-y-2">
-                              {parsedSuggestions.vocabulary_enhancements.map(
-                                (item, i) => (
-                                  <li
-                                    key={i}
-                                    className="border-l-2 border-purple-300 pl-3"
-                                  >
-                                    <span className="font-medium">
-                                      {item.original}
-                                    </span>{' '}
-                                    → {item.suggestions.join(', ')}
-                                  </li>
-                                ),
-                              )}
-                            </ul>
-                          ) : (
-                            <div>No vocabulary enhancements available</div>
-                          )}
-                        </Card>
+                      {/* Vocabulary Enhancements */}
+                          <Card className="p-4 mb-4 bg-purple-50">
+                            <h3 className="text-lg font-medium mb-2 text-white bg-purple-800 p-2 rounded">
+                              Vocabulary Enhancements
+                            </h3>
+                            {parsedSuggestions.vocabulary_enhancements?.length ? (
+                              <ul className="space-y-2">
+                                {parsedSuggestions.vocabulary_enhancements.map(
+                                  (item, i) => (
+                                    <li
+                                      key={i}
+                                      className="border-l-2 border-purple-300 pl-3 text-purple-700"
+                                    >
+                                      <span className="font-medium">
+                                        {item.original}
+                                      </span>{' '}
+                                      → {item.suggestions.join(', ')}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
+                            ) : (
+                              <div className="text-purple-700">No vocabulary enhancements available</div>
+                            )}
+                          </Card>
 
                         {/* Structure Suggestions */}
-                        <Card className="p-4">
-                          <h3 className="text-lg font-medium mb-2 text-orange-800">
+                        <Card className="p-4 mb-4 bg-orange-50">
+                          <h3 className="text-lg font-medium mb-2 text-white bg-orange-800 p-2 rounded">
                             Structure Suggestions
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
                             {parsedSuggestions.structure_suggestions?.length ? (
                               parsedSuggestions.structure_suggestions.map(
-                                (s, i) => <li key={i}>{s}</li>,
+                                (s, i) => (
+                                  <li key={i} className="text-orange-700">
+                                    {s}
+                                  </li>
+                                ),
                               )
                             ) : (
-                              <li>No structure suggestions available</li>
+                              <li className="text-orange-700">No structure suggestions available</li>
                             )}
                           </ul>
                         </Card>
