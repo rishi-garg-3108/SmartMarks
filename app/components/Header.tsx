@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import ThemeToggle from "./ThemeToggle"
 
 
 export default function Header() {
@@ -33,10 +34,13 @@ export default function Header() {
   return (
     <header className="bg-background border-b border-border">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        {/* Logo / Brand */}
         <Link href="/" className="flex items-center space-x-2">
           <Bookmark className="h-8 w-8 text-primary" />
           <span className="text-xl font-bold text-primary">SmartMarks</span>
         </Link>
+
+        {/* Main nav links */}
         <nav>
           <ul className="flex space-x-4">
             <li>
@@ -49,20 +53,25 @@ export default function Header() {
                 {t.pricing}
               </Link>
             </li>
-                             {/* Add the improvements link here */}
             <li>
               <Link href="/improvements" className="text-foreground hover:text-primary">
-          Improvements
+                Improvements
               </Link>
             </li>
           </ul>
         </nav>
+
+        {/* Right-hand controls */}
         <div className="flex items-center space-x-4">
+          {/* 🌗 Theme switcher */}
+          <ThemeToggle />
+
+          {/* Language selector */}
           <Select
             defaultValue={language}
             onValueChange={(value) => {
               setLanguage(value as "en" | "de")
-              window.location.reload() // Force a page reload to apply the new language
+              window.location.reload()
             }}
           >
             <SelectTrigger className="w-[100px]">
@@ -73,6 +82,8 @@ export default function Header() {
               <SelectItem value="de">Deutsch</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Auth controls */}
           {userEmail ? (
             <div className="flex items-center space-x-2">
               <span className="text-foreground">{userEmail}</span>

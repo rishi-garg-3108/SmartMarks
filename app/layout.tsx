@@ -1,27 +1,24 @@
-"use client";
+/* app/layout.tsx  – SERVER component, no "use client" */
+import "./globals.css";
+import type { Metadata } from "next";
+import Providers from "./providers";          // ← client wrapper
 
-import "./globals.css"
-import type { Metadata } from "next"
-import { LanguageProvider } from "./contexts/LanguageContext"
-import { useState, useEffect } from "react"
+export const metadata: Metadata = {
+  title: "SmartMarks AI",
+  description: "Hand-writing recognition & grading",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   return (
-    <html lang="en">
-      <LanguageProvider>
-        <body>{mounted && children}</body>
-      </LanguageProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        {/* all client contexts and hooks live inside <Providers /> */}
+        <Providers>{children}</Providers>
+      </body>
     </html>
-  )
+  );
 }
-
