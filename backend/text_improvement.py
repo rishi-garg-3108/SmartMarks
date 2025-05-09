@@ -48,16 +48,30 @@ def analyze_text_complexity(text):
         "common_words": common_words
     }
     
+
+
 def generate_improvement_suggestions(text):
     """Generate text improvement suggestions using GPT"""
     # Create system prompt for GPT
     system_prompt = """You are an expert writing coach. Analyze the text and provide:
 1. Style Improvements: Suggest 3 specific ways to improve writing style (clarity, conciseness, tone)
-2. Vocabulary Enhancements: Identify 3-5 words that could be replaced with more precise or sophisticated alternatives
+2. Vocabulary Enhancements: Identify 3-5 common or weak words that could be replaced with more precise or sophisticated alternatives. Format EXACTLY as an array of objects, each with "original" (the original word) and "suggestions" (an array of better word alternatives).
 3. Structure Suggestions: Recommend improvements to paragraph structure, transitions, or flow
 4. Strengths: Note 2 positive aspects of the writing
 
-Format your response as a structured JSON with these sections."""
+Format your response as a structured JSON with these sections. For vocabulary enhancements, use this exact format:
+{
+  "vocabulary_enhancements": [
+    {
+      "original": "good",
+      "suggestions": ["excellent", "outstanding", "superb"]
+    },
+    {
+      "original": "use",
+      "suggestions": ["utilize", "employ", "implement"]
+    }
+  ]
+}"""
 
     # Call GPT-4o with the text
     try:
@@ -82,6 +96,8 @@ Format your response as a structured JSON with these sections."""
             "strengths": ["Text analysis unavailable"]
         }
 
+
+
 def get_text_improvements(text):
     """Main function to get all text improvements"""
     # Get basic text complexity metrics
@@ -89,6 +105,10 @@ def get_text_improvements(text):
     
     # Get GPT-generated improvement suggestions
     suggestions_json = generate_improvement_suggestions(text)
+    
+    # Alternative: You can use the custom vocabulary enhancement function instead of GPT
+    # custom_vocab_enhancements = generate_vocabulary_enhancements_custom(text)
+    # if using the custom function, you would need to add it to your return object
     
     # Combine all results
     return {
