@@ -1,0 +1,32 @@
+localhost:8080 {
+    # Specific routes for your Flask backend
+    handle_path /download_pdf/* {
+        reverse_proxy localhost:5000
+    }
+    handle_path /uploads/* {
+        reverse_proxy localhost:5000
+    }
+    handle_path /upload {
+        reverse_proxy localhost:5000
+    }
+    handle_path /get_results {
+        reverse_proxy localhost:5000
+    }
+    handle_path /retry_image {
+        reverse_proxy localhost:5000
+    }
+    handle_path /generate_pdf {
+        reverse_proxy localhost:5000
+    }
+    handle_path /get_improvements {
+        reverse_proxy localhost:5000
+    }
+    handle_path /improvements_pdf {
+        reverse_proxy localhost:5000
+    }
+
+    # Default: route everything else to your Next.js frontend
+    handle {
+        reverse_proxy localhost:3000
+    }
+}
