@@ -1,48 +1,62 @@
 import base64
 import os
 import re
-import openai
-import cv2
+from openai import OpenAI
 import pandas as pd
-from io import BytesIO
-from PIL import Image
-from fpdf import FPDF
 import pdfkit
 from PyPDF2 import PdfReader
 from docx import Document
-import config
+from dotenv import load_dotenv
 
-os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
-os.environ['OPENAI_MODEL_NAME'] = 'gpt-4o'
+load_dotenv()
+
+# Set up OpenAI API key - use the same key you're using for handwriting analysis
+API_KEY = os.environ.get("OPENAI_API_KEY", "not-set")
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o")
+
+client = OpenAI(api_key=API_KEY)
+
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
-    
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 
 def extract_text_from_image(image_path):
     image_base64 = f"data:image/jpeg;base64,{encode_image(image_path)}"
-    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    
+
     response = client.chat.completions.create(
-        model='gpt-4o',
+        model=LLM_MODEL,
         messages=[
-            {"role": "user", "content": [
-                {"type": "text", "text": "Extract the text from this image without modifying spelling or grammar."},
-                {"type": "image_url", "image_url": {"url": image_base64}}
-            ]},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Extract the text from this image without modifying spelling or grammar.",
+                    },
+                    {"type": "image_url", "image_url": {"url": image_base64}},
+                ],
+            },
         ],
         max_tokens=500,
     )
     return response.choices[0].message.content
 
+
 def correct_spelling_grammar(text):
-    response = openai.chat.completions.create(
-        model='gpt-4o',
+    response = client.chat.completions.create(
+        model="gpt-4o",
         messages=[
-            {"role": "system", "content": "You are an expert in spelling and grammar correction. Identify errors and provide corrections in 'Incorrect -> Correct -> Category' format."},
-            {"role": "user", "content": f"Review the following text: '{text}' and identify spelling and grammar mistakes."}
-        ]
+            {
+                "role": "system",
+                "content": "You are an expert in spelling and grammar correction. Identify errors and provide corrections in 'Incorrect -> Correct -> Category' format.",
+            },
+            {
+                "role": "user",
+                "content": f"Review the following text: '{text}' and identify spelling and grammar mistakes.",
+            },
+        ],
     )
 
     corrected_text = response.choices[0].message.content.strip()
@@ -60,24 +74,32 @@ def correct_spelling_grammar(text):
 
     return errors  # Ensure it's a list of lists
 
+
 def mark_text(text, df):
-    corrections = df.to_dict(orient='records')
+    corrections = df.to_dict(orient="records")
     for correction in corrections:
-        incorrect_text = correction['Incorrect Text']
-        category = correction['Error Category']
+        incorrect_text = correction["Incorrect Text"]
+        category = correction["Error Category"]
         if "Spelling" in category:
-            text = re.sub(re.escape(incorrect_text), f'<span style="color:red;">{incorrect_text}</span>', text)
+            text = re.sub(
+                re.escape(incorrect_text),
+                f'<span style="color:red;">{incorrect_text}</span>',
+                text,
+            )
         elif "Grammar" in category:
-            text = re.sub(re.escape(incorrect_text), f'<span style="color:blue;">{incorrect_text}</span>', text)
+            text = re.sub(
+                re.escape(incorrect_text),
+                f'<span style="color:blue;">{incorrect_text}</span>',
+                text,
+            )
     return text
-
-
 
 
 PDF_DIRECTORY = "generated_pdfs"
 
 if not os.path.exists(PDF_DIRECTORY):
     os.makedirs(PDF_DIRECTORY)
+
 
 def create_pdf(student_name, student_class, subject, results):
     pdf_file_path = os.path.join(PDF_DIRECTORY, "student_report.pdf")  # Single PDF file
@@ -182,7 +204,7 @@ def create_pdf(student_name, student_class, subject, results):
             expected_columns = {
                 "incorrectText": "Incorrect Text",
                 "correctText": "Correct Text",
-                "errorCategory": "Error Category"
+                "errorCategory": "Error Category",
             }
 
             # Rename columns if necessary
@@ -196,15 +218,17 @@ def create_pdf(student_name, student_class, subject, results):
 
         # ✅ Process extracted text to add superscripts (G/S)
         for _, row in error_df.iterrows():
-            incorrect_word = row['Incorrect Text']
-            error_type = row['Error Category']
+            incorrect_word = row["Incorrect Text"]
+            error_type = row["Error Category"]
 
             if "Spelling" in error_type:
                 superscript = "<sup>S</sup>"  # S for Spelling
             else:
                 superscript = "<sup>G</sup>"  # G for Grammar
 
-            extracted_text = extracted_text.replace(incorrect_word, f"{incorrect_word}{superscript}")
+            extracted_text = extracted_text.replace(
+                incorrect_word, f"{incorrect_word}{superscript}"
+            )
 
         # ✅ Format the error table
         error_table_html = """
@@ -218,12 +242,14 @@ def create_pdf(student_name, student_class, subject, results):
         for _, row in error_df.iterrows():
             error_table_html += f"""
             <tr>
-                <td class="highlight-red">{row['Incorrect Text']}</td>
-                <td class="highlight-green">{row['Correct Text']}</td>
-                <td class="highlight-blue">{row['Error Category']}</td>
+                <td class="highlight-red">{row["Incorrect Text"]}</td>
+                <td class="highlight-green">{row["Correct Text"]}</td>
+                <td class="highlight-blue">{row["Error Category"]}</td>
             </tr>
             """
-        error_table_html += "</table>" if not error_df.empty else "<p>No errors found.</p>"
+        error_table_html += (
+            "</table>" if not error_df.empty else "<p>No errors found.</p>"
+        )
 
         # ✅ Add sections for each image
         html_content += f"""
@@ -246,7 +272,9 @@ def create_pdf(student_name, student_class, subject, results):
     html_content += "</body></html>"
 
     # ✅ Generate the PDF with the improved formatting
-    pdfkit.from_string(html_content, pdf_file_path, options={'enable-local-file-access': ''})
+    pdfkit.from_string(
+        html_content, pdf_file_path, options={"enable-local-file-access": ""}
+    )
 
     print(f"✅ PDF successfully saved: {pdf_file_path}")  # Debugging
 
