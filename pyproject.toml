@@ -1,0 +1,19 @@
+[project]
+name = "smartmarks"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.0",
+    "flask-cors>=5.0.1",
+    "fpdf>=1.7.2",
+    "openai>=1.72.0",
+    "opencv-python>=4.11.0.86",
+    "pandas>=2.2.3",
+    "pdfkit>=1.0.0",
+    "pillow>=11.1.0",
+    "pypdf2>=3.0.1",
+    "python-docx>=1.1.2",
+    "python-dotenv>=1.1.0",
+]

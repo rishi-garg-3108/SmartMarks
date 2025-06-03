@@ -1,0 +1,7 @@
+# .dockerignore
+.venv
+*.db
+agents.db
+backups/
+**/*.pyc
+**/__pycache__/

@@ -1,0 +1,25 @@
+# Use the pre‑built uv image (Python 3.12 on Debian Bookworm Slim)
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+
+# 1) Copy project metadata & install
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --compile-bytecode
+
+# 2) Copy only code & static assets (no models/)
+COPY backend/.  ./
+
+VOLUME ["/documents", "/documents"]
+VOLUME ["/uploads", "/uploads"]
+
+# Keep Python from writing .pyc files and force unbuffered stdout/stderr
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1
+
+# Expose your FastAPI port
+EXPOSE 5000 
+
+# Start the app on 0.0.0.0 so it's reachable from outside the container
+CMD ["uv", "run", "--", "app.py"]
+
