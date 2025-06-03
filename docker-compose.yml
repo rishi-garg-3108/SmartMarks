@@ -56,8 +56,7 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
       - "traefik.http.routers.frontend.priority=1"
     environment:
-      - NEXT_PUBLIC_API_URL=https://assistant.engineeringautomation.eu/api
-      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://smartmarks.deep-research.eu/api
       - HOSTNAME=0.0.0.0
 
   # ----------------
