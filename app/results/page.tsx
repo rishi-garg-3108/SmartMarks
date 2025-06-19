@@ -43,19 +43,37 @@ export default function ResultsPage() {
 
   // Track image load errors
   const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
-
-  // 🔥 NEW: track the index of an image being retried (if any)
   const [retryingIndex, setRetryingIndex] = useState<number | null>(null);
+
+  // NEW: State for persistent error and success messages
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch results on load
   useEffect(() => {
     async function fetchResults() {
-      try {
-        const response = await fetch("http://127.0.0.1:5000/get_results");
-        if (!response.ok) throw new Error("Failed to fetch results");
-        const data = await response.json();
+      // JWT: Get token from local storage
+      const token = localStorage.getItem("jwt_token");
 
-        console.log("DEBUG: API Response from /get_results:", data);
+      // Redirect to login if no token is found
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      
+      try {
+        const response = await fetch("http://127.0.0.1:5000/get_results", {
+          // JWT: Add authorization header to the request
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch results");
+        }
+        const data = await response.json();
 
         if (data.results && data.results.length > 0) {
           const transformedResults = data.results.map((result: any) => ({
@@ -70,25 +88,37 @@ export default function ResultsPage() {
           setResults(transformedResults);
         } else {
           console.warn("⚠️ No results found in API response:", data);
+          setErrorMessage("No results were found for this submission.");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ Error fetching results:", error);
+        // NEW: Set the persistent error message
+        setErrorMessage(error.message);
       } finally {
         setLoading(false);
       }
     }
 
     fetchResults();
-  }, []);
+  }, [router]);
 
-  // Generate PDF (existing functionality)
+  // Generate PDF
   const handleGeneratePDF = async () => {
     setIsGeneratingPDF(true);
+    // NEW: Clear previous messages before starting
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    // JWT: Get the token
+    const token = localStorage.getItem("jwt_token");
+
     try {
       const response = await fetch("http://127.0.0.1:5000/generate_pdf", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // JWT: Add authorization header
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           studentName,
@@ -102,55 +132,58 @@ export default function ResultsPage() {
 
       if (response.ok) {
         setPdfUrl(`http://127.0.0.1:5000/download_pdf/${result.pdfPath}`);
-        alert("✅ PDF generated successfully!");
+        // NEW: Set a success message instead of alert
+        setSuccessMessage("PDF generated successfully!");
       } else {
-        alert(`❌ Error generating PDF: ${result.message}`);
+        // NEW: Set an error message instead of alert
+        throw new Error(result.message || "Error generating PDF");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error generating PDF:", error);
-      alert("There was an error generating the PDF. Please try again.");
+      // NEW: Set the persistent error message
+      setErrorMessage(error.message);
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
-  // Track individual image loading errors
   const handleImageError = (index: number) => {
-    setImageErrors((prev) => ({
-      ...prev,
-      [index]: true,
-    }));
+    setImageErrors((prev) => ({ ...prev, [index]: true }));
   };
 
-   // 🔥 NEW: improvements function for a single image
   const handleGetImprovements = (text: string) => {
-    // Encode the text to safely include it in a URL
     const encodedText = encodeURIComponent(text);
-    // Navigate to the improvements page with the text as a parameter
     router.push(`/improvements?text=${encodedText}`);
   };
 
-  // 🔥 NEW: Retry function for a single image
   const handleRetry = async (index: number) => {
-    // The image to reprocess
     const targetImage = results[index].image;
-    setRetryingIndex(index); // show "Retrying..." on that item
+    setRetryingIndex(index);
+    // NEW: Clear previous messages
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    // JWT: Get the token
+    const token = localStorage.getItem("jwt_token");
 
     try {
       const response = await fetch("http://127.0.0.1:5000/retry_image", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // JWT: Add authorization header
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ image: targetImage }),
       });
 
       if (!response.ok) {
-        throw new Error(`Retry failed with status ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Retry failed with status ${response.status}`);
       }
 
       const updatedResult = await response.json();
-      console.log("Retry success for image:", targetImage, updatedResult);
 
-      // Merge updated data into results
       setResults((prev) =>
         prev.map((item, i) =>
           i === index
@@ -166,94 +199,101 @@ export default function ResultsPage() {
             : item
         )
       );
-    } catch (error) {
+      // NEW: Add a success message for the retry
+      setSuccessMessage(`Successfully re-analyzed image ${index + 1}.`);
+
+    } catch (error: any) {
       console.error("❌ Error retrying image:", error);
-      alert("Retry failed! Check console for details.");
+      // NEW: Set the persistent error message
+      setErrorMessage(error.message);
     } finally {
       setRetryingIndex(null);
     }
   };
 
-  // Render
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center min-h-screen">
+            <p>Loading results...</p>
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8 text-primary">{t.resultsTitle}</h1>
 
+        {/* NEW: Persistent Message Display Area */}
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md relative" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{errorMessage}</span>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="absolute top-0 bottom-0 right-0 px-4 py-3"
+            >
+              <span className="text-2xl">×</span>
+            </button>
+          </div>
+        )}
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md relative" role="alert">
+            <strong className="font-bold">Success: </strong>
+            <span className="block sm:inline">{successMessage}</span>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="absolute top-0 bottom-0 right-0 px-4 py-3"
+            >
+              <span className="text-2xl">×</span>
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-4 mb-8">
-          <Button
-            onClick={handleGeneratePDF}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            disabled={isGeneratingPDF}
-          >
+          <Button onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
             {isGeneratingPDF ? "Generating PDF..." : "Export to PDF"}
           </Button>
 
           {pdfUrl && (
             <>
-              <a
-                href={pdfUrl.replace("generated_pdfs/", "")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-              >
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                 Preview PDF
               </a>
-              <a
-                href={pdfUrl.replace("generated_pdfs/", "")}
-                download
-                className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-              >
+              <a href={pdfUrl} download className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
                 Download PDF
               </a>
             </>
           )}
         </div>
-
+        
+        {/* The rest of the page remains the same */}
         {results.map((result, index) => (
-          <div
-            key={index}
-            className="result-container my-6 p-4 border border-gray-300 rounded-md shadow-md"
-          >
-            <h3 className="text-lg font-bold mb-2">
-              Extracted Text for Image {index + 1}:
-            </h3>
-
-            {/* Display Image if no load error */}
+          <div key={index} className="result-container my-6 p-4 border rounded-md shadow-md">
+            <h3 className="text-lg font-bold mb-2">Results for Image {index + 1}:</h3>
             {result.image && !imageErrors[index] && (
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Uploaded Image:</h3>
                 <img
                   src={`http://127.0.0.1:5000/uploads/${result.image}`}
                   alt={`Uploaded Image ${index + 1}`}
-                  className="max-w-[400px] max-h-[400px] border border-gray-300 rounded-md shadow-md object-contain"
-                  onError={() => {
-                    console.error("Image failed to load:", result.image);
-                    handleImageError(index);
-                  }}
+                  className="max-w-[400px] max-h-[400px] border rounded-md shadow-md object-contain"
+                  onError={() => handleImageError(index)}
                 />
               </div>
             )}
-
-            {/* If image fails to load or missing */}
             {(imageErrors[index] || !result.image) && (
               <div className="mt-4 p-4 bg-yellow-100 text-yellow-800 rounded">
                 <p>Image could not be loaded. Filename: {result.image}</p>
               </div>
             )}
-
-            {/* Extracted Text */}
-            <p className="text-black p-3 bg-gray-100 rounded-md mt-4">
-              {result.extractedText}
-            </p>
-
-            {/* Error Table */}
+            <p className="text-black p-3 bg-gray-100 rounded-md mt-4">{result.extractedText}</p>
             {result.errorTable.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Error Analysis:</h3>
-                <table className="w-full border border-gray-300 rounded-lg shadow-md mt-4 text-sm text-left text-gray-700">
-                  <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
+                <table className="w-full border rounded-lg shadow-md mt-4 text-sm text-left">
+                  <thead className="bg-gray-100 text-xs uppercase">
                     <tr>
                       <th className="px-4 py-3 text-red-600">❌ Incorrect</th>
                       <th className="px-4 py-3 text-green-600">✅ Correct</th>
@@ -262,18 +302,9 @@ export default function ResultsPage() {
                   </thead>
                   <tbody>
                     {result.errorTable.map((error, i) => (
-                      <tr
-                        key={i}
-                        className={`${
-                          i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                        } hover:bg-gray-200 transition-all duration-150`}
-                      >
-                        <td className="px-4 py-3 font-bold text-red-600">
-                          {error.incorrectText}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-green-600">
-                          {error.correctText}
-                        </td>
+                      <tr key={i} className="hover:bg-gray-200">
+                        <td className="px-4 py-3 font-bold text-red-600">{error.incorrectText}</td>
+                        <td className="px-4 py-3 font-semibold text-green-600">{error.correctText}</td>
                         <td className="px-4 py-3 font-semibold text-blue-600 flex items-center gap-2">
                           {error.errorCategory === "Spelling" ? "🔠" : "📖"}{" "}
                           {error.errorCategory}
@@ -284,40 +315,21 @@ export default function ResultsPage() {
                 </table>
               </div>
             )}
-            <div className="mt-4">
-
-            {/* 🔥 NEW: Improvement Button */}
-          <Button 
-            onClick={() => handleGetImprovements(result.extractedText)}
-            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-            >
-            Get Improvement Suggestions
-        </Button>
-            </div>
-
-            {/* 🔥 NEW: Retry Button */}
-            <div className="mt-4">
-              <Button
-                onClick={() => handleRetry(index)}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
-                disabled={retryingIndex === index}
-              >
-                {retryingIndex === index ? "Retrying..." : "Retry"}
+            <div className="mt-4 flex flex-wrap gap-4">
+              <Button onClick={() => handleGetImprovements(result.extractedText)} className="bg-purple-500 hover:bg-purple-700">
+                Get Improvement Suggestions
+              </Button>
+              <Button onClick={() => handleRetry(index)} disabled={retryingIndex === index} className="bg-orange-500 hover:bg-orange-700">
+                {retryingIndex === index ? "Retrying..." : "Retry Analysis"}
               </Button>
             </div>
           </div>
         ))}
 
-        {/* Email Form Section */}
         <div className="mt-12 border-t pt-8">
-          <h2 className="text-2xl font-bold mb-6 text-center text-primary">
-            Send Report by Email
-          </h2>
+          <h2 className="text-2xl font-bold mb-6 text-center text-primary">Send Report by Email</h2>
           <div className="max-w-2xl mx-auto">
-            <p className="text-center mb-6 text-gray-600">
-              Use the form below to send this report to the student's email
-              address.
-            </p>
+            <p className="text-center mb-6">Use the form below to send this report to the student's email address.</p>
             <EmailForm />
           </div>
         </div>

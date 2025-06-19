@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bookmark, ChevronDown } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import { useLanguage } from "../contexts/LanguageContext"
 import { translations } from "../utils/translations"
 import { Button } from "@/components/ui/button"
@@ -10,25 +10,25 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import ThemeToggle from "./ThemeToggle"
 
-
 export default function Header() {
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    // In a real application, you would check the user's session here
-    const email = localStorage.getItem("userEmail")
-    if (email) {
-      setUserEmail(email)
-    }
+    // ## JWT: Check for the token to determine login state
+    const token = localStorage.getItem("jwt_token")
+    setIsLoggedIn(!!token)
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem("userEmail")
-    setUserEmail(null)
+    // ## JWT: Remove the token on logout
+    localStorage.removeItem("jwt_token")
+    setIsLoggedIn(false)
     router.push("/")
+    // Optionally, you can reload to ensure all state is cleared
+    window.location.reload();
   }
 
   return (
@@ -43,30 +43,15 @@ export default function Header() {
         {/* Main nav links */}
         <nav>
           <ul className="flex space-x-4">
-            <li>
-              <Link href="/features" className="text-foreground hover:text-primary">
-                {t.features}
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="text-foreground hover:text-primary">
-                {t.pricing}
-              </Link>
-            </li>
-            <li>
-              <Link href="/improvements" className="text-foreground hover:text-primary">
-                Improvements
-              </Link>
-            </li>
+            <li><Link href="/features" className="text-foreground hover:text-primary">{t.features}</Link></li>
+            <li><Link href="#" className="text-foreground hover:text-primary">{t.pricing}</Link></li>
+            <li><Link href="/improvements" className="text-foreground hover:text-primary">Improvements</Link></li>
           </ul>
         </nav>
 
         {/* Right-hand controls */}
         <div className="flex items-center space-x-4">
-          {/* 🌗 Theme switcher */}
           <ThemeToggle />
-
-          {/* Language selector */}
           <Select
             defaultValue={language}
             onValueChange={(value) => {
@@ -74,9 +59,7 @@ export default function Header() {
               window.location.reload()
             }}
           >
-            <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Language" />
-            </SelectTrigger>
+            <SelectTrigger className="w-[100px]"><SelectValue placeholder="Language" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="en">English</SelectItem>
               <SelectItem value="de">Deutsch</SelectItem>
@@ -84,21 +67,13 @@ export default function Header() {
           </Select>
 
           {/* Auth controls */}
-          {userEmail ? (
-            <div className="flex items-center space-x-2">
-              <span className="text-foreground">{userEmail}</span>
-              <Button variant="outline" onClick={handleLogout}>
-                {t.logout}
-              </Button>
-            </div>
+          {isLoggedIn ? (
+            <Button variant="outline" onClick={handleLogout}>{t.logout}</Button>
           ) : (
-            <Button asChild variant="outline">
-              <Link href="/login">{t.loginSignup}</Link>
-            </Button>
+            <Button asChild variant="outline"><Link href="/login">{t.loginSignup}</Link></Button>
           )}
         </div>
       </div>
     </header>
   )
 }
-

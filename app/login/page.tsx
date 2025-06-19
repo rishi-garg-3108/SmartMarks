@@ -18,22 +18,49 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("") // State for login errors
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const userEmail = localStorage.getItem("userEmail")
-    if (userEmail) {
+    // ## JWT: We check for a token, not an email
+    const token = localStorage.getItem("jwt_token")
+    if (token) {
       router.push("/grade")
     }
   }, [router])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically handle the login process
-    console.log("Logging in", { email, password })
-    // Store the email in localStorage
-    localStorage.setItem("userEmail", email)
-    // Redirect to the grade page
-    router.push("/grade")
+    setLoading(true)
+    setError("")
+
+    try {
+        const response = await fetch("http://127.0.0.1:5000/login", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // If login fails (e.g., 401 Unauthorized), the server sends a message
+            throw new Error(data.message || 'Login failed');
+        }
+
+        // ## JWT: On successful login, store the token
+        localStorage.setItem("jwt_token", data.token);
+        
+        // Redirect to the grade page
+        router.push("/grade");
+
+    } catch (err: any) {
+        setError(err.message);
+    } finally {
+        setLoading(false)
+    }
   }
 
   return (
@@ -54,6 +81,7 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
               <div className="space-y-2">
                 <Label htmlFor="email">{t.email}</Label>
                 <Input
@@ -80,8 +108,8 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full">
-                {t.loginSignup}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : t.loginSignup}
               </Button>
             </form>
           </CardContent>
@@ -90,4 +118,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
