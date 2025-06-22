@@ -1,11 +1,16 @@
 services:
+  # ----------------
+  # Reverse Proxy
+  # ----------------
   traefik:
     image: traefik:v3.2
     command:
       - "--log.level=DEBUG"
       - "--accesslog=true"
+      - "--accesslog.fields.headers.names.User-Agent=keep"
       - "--api.dashboard=true"
       - "--api.insecure=true"
+      - "--ping=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=traefik"
@@ -28,48 +33,55 @@ services:
     networks:
       - traefik
 
+  # ----------------
+  # Frontend (Next.js)
+  # ----------------
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-      args:
-        NEXT_PUBLIC_API_URL: https://localhost
     restart: unless-stopped
     depends_on:
       - backend
+    ports:
+      - "3000:3000"
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend.rule=Host(`smartmarks.deep-research.eu`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
       - "traefik.http.routers.frontend.priority=1"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://smartmarks.deep-research.eu/api
+      - HOSTNAME=0.0.0.0
 
+  # ----------------
+  # Backend (FastAPI)
+  # ----------------
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
     restart: unless-stopped
+    # Running as root to avoid permission issues with uv cache
     user: "0:0"
     volumes:
-      - ./documents:/app/documents
-      - ./uploads:/app/uploads
-      - ./generated_pdfs:/app/generated_pdfs
+      - ./documents:/documents
+      - ./uploads:/uploads
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.backend.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`smartmarks.deep-research.eu`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
       - "traefik.http.routers.backend.priority=10"
-      - "traefik.http.middlewares.backend-stripprefix.stripprefix.prefixes=/api"
-      - "traefik.http.routers.backend.middlewares=backend-stripprefix"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
 

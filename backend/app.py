@@ -317,5 +317,17 @@ def improvements_pdf(current_user):
     return jsonify({"pdfPath": os.path.basename(filename)})
 
 if __name__ == '__main__':
-    ## JWT: Run the app on a different port if you want, e.g., 5001
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Get environment - defaults to development
+    flask_env = os.getenv('FLASK_ENV', 'development')
+    
+    # Set debug mode based on environment
+    debug_mode = flask_env == 'development'
+    
+    print(f"Starting Flask app in {flask_env} mode (debug={debug_mode})")
+    
+    # Run the app on port 5000
+    app.run(
+        host='0.0.0.0', 
+        port=5000, 
+        debug=debug_mode
+    )
