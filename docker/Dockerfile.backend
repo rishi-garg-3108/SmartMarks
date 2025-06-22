@@ -1,25 +1,38 @@
-# Use the pre‑built uv image (Python 3.12 on Debian Bookworm Slim)
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+# Use Python 3.12 base image
+FROM python:3.12-slim
+
+# Install system dependencies for PDF generation and OCR
+RUN apt-get update && apt-get install -y \
+    wkhtmltopdf \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 1) Copy project metadata & install
+# Install uv for faster Python package management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Copy project files
 COPY pyproject.toml uv.lock ./
+COPY backend/ ./
+
+# Install Python dependencies
 RUN uv sync --no-dev --compile-bytecode
 
-# 2) Copy only code & static assets (no models/)
-COPY backend/.  ./
+# Create necessary directories
+RUN mkdir -p /app/uploads /app/generated_pdfs /app/documents
 
-VOLUME ["/documents", "/documents"]
-VOLUME ["/uploads", "/uploads"]
-
-# Keep Python from writing .pyc files and force unbuffered stdout/stderr
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-  PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    FLASK_APP=app.py
 
-# Expose your FastAPI port
-EXPOSE 5000 
+EXPOSE 5000
 
-# Start the app on 0.0.0.0 so it's reachable from outside the container
-CMD ["uv", "run", "--", "app.py"]
-
+# Run the Flask app
+CMD ["uv", "run", "python", "app.py"]
