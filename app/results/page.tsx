@@ -325,14 +325,6 @@ export default function ResultsPage() {
             </div>
           </div>
         ))}
-
-        <div className="mt-12 border-t pt-8">
-          <h2 className="text-2xl font-bold mb-6 text-center text-primary">Send Report by Email</h2>
-          <div className="max-w-2xl mx-auto">
-            <p className="text-center mb-6">Use the form below to send this report to the student's email address.</p>
-            <EmailForm />
-          </div>
-        </div>
       </main>
       <Footer />
     </div>
