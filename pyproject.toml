@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "flask>=3.1.0",
+    "PyJWT",
     "flask-cors>=5.0.1",
     "fpdf>=1.7.2",
     "openai>=1.72.0",
