@@ -62,7 +62,7 @@ export default function ResultsPage() {
       }
       
       try {
-        const response = await fetch("http://127.0.0.1:5000/get_results", {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/get_results`, {
           // JWT: Add authorization header to the request
           headers: {
             'Authorization': `Bearer ${token}`
@@ -113,7 +113,7 @@ export default function ResultsPage() {
     const token = localStorage.getItem("jwt_token");
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/generate_pdf", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/generate_pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -131,7 +131,7 @@ export default function ResultsPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setPdfUrl(`http://127.0.0.1:5000/download_pdf/${result.pdfPath}`);
+        setPdfUrl(`${process.env.NEXT_PUBLIC_API_URL}/download_pdf/${result.pdfPath}`);
         // NEW: Set a success message instead of alert
         setSuccessMessage("PDF generated successfully!");
       } else {
@@ -167,7 +167,7 @@ export default function ResultsPage() {
     const token = localStorage.getItem("jwt_token");
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/retry_image", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retry_image`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -276,7 +276,7 @@ export default function ResultsPage() {
               <div className="mt-4">
                 <h3 className="text-lg font-bold">Uploaded Image:</h3>
                 <img
-                  src={`http://127.0.0.1:5000/uploads/${result.image}`}
+                  src={`${process.env.NEXT_PUBLIC_API_URL}/uploads/${result.image}`}
                   alt={`Uploaded Image ${index + 1}`}
                   className="max-w-[400px] max-h-[400px] border rounded-md shadow-md object-contain"
                   onError={() => handleImageError(index)}
