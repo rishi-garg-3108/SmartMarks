@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useSearchParams } from 'next/navigation';
@@ -39,19 +40,29 @@ export default function ImprovementsPage() {
   const { language } = useLanguage();
   const t = translations[language];
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   /* ─────────────────────────── state ────────────────────────── */
-  const [mounted, setMounted]                 = useState(false);
-  const [originalText, setOriginalText]       = useState<string>('');
-  const [improvements, setImprovements]       = useState<Improvements | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [originalText, setOriginalText] = useState<string>('');
+  const [improvements, setImprovements] = useState<Improvements | null>(null);
   const [parsedSuggestions, setParsedSuggestions] = useState<ImprovementSuggestions | null>(null);
 
-  const [loading, setLoading]                 = useState(false);
-  const [error, setError]                     = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* PDF-related state */
-  const [pdfGenerating, setPdfGenerating]     = useState(false);
-  const [pdfUrl, setPdfUrl]                   = useState<string | null>(null);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  /* ───────────────────── JWT Authentication Check ──────────── */
+  useEffect(() => {
+    const token = localStorage.getItem("jwt_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+  }, [router]);
 
   /* ───────────────────── hydrate and pre-fill text ──────────── */
   useEffect(() => {
@@ -92,41 +103,80 @@ export default function ImprovementsPage() {
     setParsedSuggestions(null);
     setPdfUrl(null);
 
+    // Get JWT token
+    const token = localStorage.getItem("jwt_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     try {
-      const res = await fetch('http://127.0.0.1:5000/get_improvements', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/get_improvements`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ text: originalText }),
       });
-      if (!res.ok) throw new Error('Request failed');
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem("jwt_token");
+          router.push("/login");
+          return;
+        }
+        throw new Error(`Request failed with status ${res.status}`);
+      }
+      
       const data = await res.json();
       setImprovements(data.improvements);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Failed to analyze text. Please try again.');
+      setError(err.message || 'Failed to analyze text. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  /* 🔥 NEW: Generate PDF */
+  /* 🔥 Generate PDF */
   const handleGeneratePDF = async () => {
     if (!improvements || !parsedSuggestions) return;
     setPdfGenerating(true);
     setError(null);
 
+    // Get JWT token
+    const token = localStorage.getItem("jwt_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     try {
-      const res = await fetch('http://127.0.0.1:5000/improvements_pdf', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/improvements_pdf`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ text: originalText, improvements }),
       });
-      if (!res.ok) throw new Error('PDF generation failed');
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem("jwt_token");
+          router.push("/login");
+          return;
+        }
+        throw new Error(`PDF generation failed with status ${res.status}`);
+      }
+      
       const data: PdfResponse = await res.json();
-      setPdfUrl(`http://127.0.0.1:5000/download_pdf/${data.pdfPath}`);
-    } catch (err) {
+      setPdfUrl(`${process.env.NEXT_PUBLIC_API_URL}/download_pdf/${data.pdfPath}`);
+    } catch (err: any) {
       console.error(err);
-      setError('PDF generation failed. Please try again.');
+      setError(err.message || 'PDF generation failed. Please try again.');
     } finally {
       setPdfGenerating(false);
     }
@@ -187,14 +237,25 @@ export default function ImprovementsPage() {
                           <span className="font-medium">Sentence Count:</span>{' '}
                           {improvements.complexity_metrics.sentence_count}
                         </li>
-                                                               
+                        <li>
+                          <span className="font-medium">Avg Words/Sentence:</span>{' '}
+                          {improvements.complexity_metrics.avg_words_per_sentence?.toFixed(1)}
+                        </li>
+                        <li>
+                          <span className="font-medium">Avg Word Length:</span>{' '}
+                          {improvements.complexity_metrics.avg_word_length?.toFixed(1)}
+                        </li>
+                        <li>
+                          <span className="font-medium">Vocabulary Diversity:</span>{' '}
+                          {improvements.complexity_metrics.vocabulary_diversity?.toFixed(1)}%
+                        </li>
                         <li>
                           <span className="font-medium">Common Words:</span>{' '}
-                          {improvements.complexity_metrics.common_words.map(
+                          {improvements.complexity_metrics.common_words?.map(
                             ([word, count]) => (
                               <span
                                 key={word}
-                                className="inline-block px-2 py-1 mr-2 mt-1 bg-black rounded-md text-sm text-white"
+                                className="inline-block px-2 py-1 mr-2 mt-1 bg-gray-800 rounded-md text-sm text-white"
                               >
                                 {word} ({count})
                               </span>
@@ -207,20 +268,18 @@ export default function ImprovementsPage() {
                     {/* Suggestions cards (render only if parsed ok) */}
                     {parsedSuggestions && (
                       <>
-                      {/* Strengths Card */}
+                        {/* Strengths Card */}
                         <Card className="p-4 mb-4 bg-green-50">
                           <h3 className="text-lg font-medium mb-2 text-white bg-green-800 p-2 rounded">
                             Strengths
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
                             {parsedSuggestions.strengths?.length ? (
-                              parsedSuggestions.strengths.map(
-                                (s, i) => (
-                                  <li key={i} className="text-green-700">
-                                    {s}
-                                  </li>
-                                ),
-                              )
+                              parsedSuggestions.strengths.map((s, i) => (
+                                <li key={i} className="text-green-700">
+                                  {s}
+                                </li>
+                              ))
                             ) : (
                               <li className="text-green-700">No strengths data available</li>
                             )}
@@ -234,43 +293,40 @@ export default function ImprovementsPage() {
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
                             {parsedSuggestions.style_improvements?.length ? (
-                              parsedSuggestions.style_improvements.map(
-                                (s, i) => (
-                                  <li key={i} className="text-blue-700">
-                                    {s}
-                                  </li>
-                                ),
-                              )
+                              parsedSuggestions.style_improvements.map((s, i) => (
+                                <li key={i} className="text-blue-700">
+                                  {s}
+                                </li>
+                              ))
                             ) : (
                               <li className="text-blue-700">No style improvements available</li>
                             )}
                           </ul>
                         </Card>
-                      {/* Vocabulary Enhancements */}
-                          <Card className="p-4 mb-4 bg-purple-50">
-                            <h3 className="text-lg font-medium mb-2 text-white bg-purple-800 p-2 rounded">
-                              Vocabulary Enhancements
-                            </h3>
-                            {parsedSuggestions.vocabulary_enhancements?.length ? (
-                              <ul className="space-y-2">
-                                {parsedSuggestions.vocabulary_enhancements.map(
-                                  (item, i) => (
-                                    <li
-                                      key={i}
-                                      className="border-l-2 border-purple-300 pl-3 text-purple-700"
-                                    >
-                                      <span className="font-medium">
-                                        {item.original}
-                                      </span>{' '}
-                                      → {item.suggestions.join(', ')}
-                                    </li>
-                                  ),
-                                )}
-                              </ul>
-                            ) : (
-                              <div className="text-purple-700">No vocabulary enhancements available</div>
-                            )}
-                          </Card>
+
+                        {/* Vocabulary Enhancements */}
+                        <Card className="p-4 mb-4 bg-purple-50">
+                          <h3 className="text-lg font-medium mb-2 text-white bg-purple-800 p-2 rounded">
+                            Vocabulary Enhancements
+                          </h3>
+                          {parsedSuggestions.vocabulary_enhancements?.length ? (
+                            <ul className="space-y-2">
+                              {parsedSuggestions.vocabulary_enhancements.map((item, i) => (
+                                <li
+                                  key={i}
+                                  className="border-l-2 border-purple-300 pl-3 text-purple-700"
+                                >
+                                  <span className="font-medium">
+                                    {item.original}
+                                  </span>{' '}
+                                  → {item.suggestions.join(', ')}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-purple-700">No vocabulary enhancements available</div>
+                          )}
+                        </Card>
 
                         {/* Structure Suggestions */}
                         <Card className="p-4 mb-4 bg-orange-50">
@@ -279,13 +335,11 @@ export default function ImprovementsPage() {
                           </h3>
                           <ul className="list-disc list-inside space-y-1">
                             {parsedSuggestions.structure_suggestions?.length ? (
-                              parsedSuggestions.structure_suggestions.map(
-                                (s, i) => (
-                                  <li key={i} className="text-orange-700">
-                                    {s}
-                                  </li>
-                                ),
-                              )
+                              parsedSuggestions.structure_suggestions.map((s, i) => (
+                                <li key={i} className="text-orange-700">
+                                  {s}
+                                </li>
+                              ))
                             ) : (
                               <li className="text-orange-700">No structure suggestions available</li>
                             )}
