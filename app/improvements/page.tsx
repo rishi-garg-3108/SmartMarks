@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { useSearchParams } from 'next/navigation';
-import { LanguageProvider } from '../contexts/LanguageContext';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useLanguage } from '../contexts/LanguageContext';
 import { translations } from '../utils/translations';
 import { Button } from '@/components/ui/button';
@@ -39,6 +38,7 @@ export default function ImprovementsPage() {
   const { language } = useLanguage();
   const t = translations[language];
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   /* ─────────────────────────── state ────────────────────────── */
   const [mounted, setMounted]                 = useState(false);
@@ -53,12 +53,17 @@ export default function ImprovementsPage() {
   const [pdfGenerating, setPdfGenerating]     = useState(false);
   const [pdfUrl, setPdfUrl]                   = useState<string | null>(null);
 
-  /* ───────────────────── hydrate and pre-fill text ──────────── */
+  /* ───────────────────── Auth Check and Hydration ──────────── */
   useEffect(() => {
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return; // Stop further execution if not authenticated
+    }
     setMounted(true);
     const textParam = searchParams.get('text');
     if (textParam) setOriginalText(decodeURIComponent(textParam));
-  }, [searchParams]);
+  }, [router, searchParams]);
 
   /* ───────── parse improvement_suggestions whenever loaded ──── */
   useEffect(() => {
@@ -134,7 +139,7 @@ export default function ImprovementsPage() {
 
   /* ─────────────────────────── UI ───────────────────────────── */
   return (
-    <LanguageProvider>
+    <>
       {mounted && (
         <div className="flex flex-col min-h-screen bg-background text-foreground">
           <Header />
@@ -342,6 +347,6 @@ export default function ImprovementsPage() {
           <Footer />
         </div>
       )}
-    </LanguageProvider>
+    </>
   );
 }
