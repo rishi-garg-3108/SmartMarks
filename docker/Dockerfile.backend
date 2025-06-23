@@ -30,7 +30,8 @@ RUN mkdir -p /app/uploads /app/generated_pdfs /app/documents
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    FLASK_APP=app.py
+    FLASK_APP=app.py \
+    FLASK_ENV=production
 
 EXPOSE 5000
 

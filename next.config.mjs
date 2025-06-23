@@ -1,48 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker
   output: 'standalone',
-  typescript: {
-    // Ignore TypeScript errors during build
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    // Ignore ESLint errors during build
-    ignoreDuringBuilds: true,
-  },
+  
+  // Image configuration for production
   images: {
     remotePatterns: [
-      // Local development patterns
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "5000",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "5000",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "https",
-        hostname: "localhost",
-        pathname: "/uploads/**",
-      },
-      // Production patterns for global deployment
       {
         protocol: "https",
         hostname: "smartmarks.deep-research.eu",
         pathname: "/api/uploads/**",
       },
+      // Keep localhost for development
       {
-        protocol: "https",
-        hostname: "smartmarks.deep-research.eu",
-        pathname: "/uploads/**",
+        protocol: "http",
+        hostname: "localhost",
+        pathname: "/api/uploads/**",
       },
     ],
   },
-  // Add security headers for production
+
+  // Security headers for production
   async headers() {
     return [
       {
