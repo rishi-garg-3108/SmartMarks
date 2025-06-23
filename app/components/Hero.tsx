@@ -35,15 +35,6 @@ export default function Hero() {
           <p className="text-xl mb-6 text-muted-foreground">{t.smartMarksDescription}</p>
           <Button onClick={handleStartGrading}>{t.getStarted}</Button>
         </div>
-        <div className="md:w-1/2">
-          <Image
-            src="/images/placeholder.svg"
-            alt="SmartMarks Grading Dashboard"
-            width={600}
-            height={400}
-            className="rounded-lg shadow-lg"
-          />
-        </div>
       </div>
     </section>
   )
