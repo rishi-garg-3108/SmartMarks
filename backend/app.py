@@ -11,7 +11,6 @@ import re
 from PIL import Image
 from text_improvement import get_text_improvements, analyze_text_complexity, generate_improvement_suggestions
 import json, time, pdfkit
-from dotenv import load_dotenv
 
 ## JWT: Import new libraries for JWT, password hashing, and decorators
 import jwt
@@ -19,33 +18,6 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Load environment variables from root folder
-# Since app.py is in app/backend/, we need to go up two levels to find .env
-env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
-load_dotenv(env_path)
-
-
-teacher_email = os.getenv("TEACHER_EMAIL")
-teacher_password = os.getenv("TEACHER_PASSWORD")
-teacher_id = os.getenv("TEACHER_ID")
-
-
-if not teacher_email or not teacher_password or not teacher_id:
-    print("❌ ERROR: One or more environment variables are None!")
-    print("Available environment variables starting with TEACHER:")
-    for key, value in os.environ.items():
-        if key.startswith('TEACHER'):
-            print(f"  {key}: {value}")
-    
-    # Use fallback values for testing
-    teacher_email = "teacher@example.com"
-    teacher_password = "testpassword"
-    teacher_id = "1"
-    print("Using fallback values for testing")
-else:
-    print("✅ All environment variables loaded successfully")
-
-print("=== END ENVIRONMENT DEBUG ===")
 
 app = Flask(__name__)
 CORS(app)
@@ -53,6 +25,7 @@ CORS(app)
 ## JWT: Add a secret key. This is crucial for signing your tokens!
 ## In a real app, load this from an environment variable.
 app.config['SECRET_KEY'] = 'a-very-secret-and-long-random-string-that-no-one-can-guess'
+
 
 # Ensure absolute path for uploads
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -65,20 +38,21 @@ os.makedirs(PDF_DIRECTORY, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PDF_WORD_DIRECTORY, exist_ok=True)
 
-## JWT: Create users dictionary from environment variables
+## JWT: Simple in-memory user store for demonstration.
+## In a real app, this would be a database (like PostgreSQL or MongoDB).
+## The password 'testpassword' is hashed for security.
 users = {
-    teacher_email: {
-        "password": generate_password_hash(teacher_password, method='pbkdf2:sha256'),
-        "id": teacher_id
+    "teacher@example.com": {
+        "password": generate_password_hash("testpassword", method='pbkdf2:sha256'),
+        "id": "1"
     }
 }
 
-print(f"Users dictionary created with email: '{teacher_email}'")
-print(f"Available users: {list(users.keys())}")
-
 stored_results = []
 
+
 ## JWT: Create the decorator to protect routes.
+## This is the "ride attendant" that checks for a valid "wristband" (token).
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -108,60 +82,36 @@ def token_required(f):
 
     return decorated
 
-## JWT: Login route with debug
+
+## JWT: New login route. This is our "main gate".
 @app.route('/login', methods=['POST'])
 def login():
-    print("=== LOGIN ROUTE CALLED ===")
-    print(f"Request method: {request.method}")
-    print(f"Request content type: {request.content_type}")
-    
-    try:
-        auth = request.get_json(force=True)
-        print(f"Received JSON data: {auth}")
-    except Exception as e:
-        print(f"❌ Error parsing JSON: {e}")
-        return jsonify({'message': 'Invalid JSON data'}), 400
-    
+    auth = request.json
     if not auth or not auth.get('email') or not auth.get('password'):
-        print("❌ Missing email or password in request")
-        return jsonify({'message': 'Email and password required'}), 401
+        return jsonify({'message': 'Could not verify'}), 401, {'WWW-Authenticate': 'Basic realm="Login required!"'}
 
     email = auth['email']
     password = auth['password']
-    
-    print(f"Login attempt for email: '{email}'")
-    print(f"Available users: {list(users.keys())}")
-    
+
     user_data = users.get(email)
-    print(f"User found: {user_data is not None}")
-    
-    if not user_data:
-        print(f"❌ User '{email}' not found in users dictionary")
-        return jsonify({'message': 'User not found'}), 401
-    
-    password_valid = check_password_hash(user_data['password'], password)
-    print(f"Password valid: {password_valid}")
-    
-    if not password_valid:
-        print("❌ Invalid password")
-        return jsonify({'message': 'Invalid password'}), 401
 
-    try:
-        # Generate JWT token
-        token = jwt.encode({
-            'sub': user_data['id'],
-            'iat': datetime.now(timezone.utc),
-            'exp': datetime.now(timezone.utc) + timedelta(hours=24)
-        }, app.config['SECRET_KEY'], algorithm="HS256")
+    # Check if user exists and password is correct
+    if not user_data or not check_password_hash(user_data['password'], password):
+        return jsonify({'message': 'Could not verify! Wrong email or password.'}), 401
 
-        print("✅ Login successful, token generated")
-        return jsonify({'token': token})
-    except Exception as e:
-        print(f"❌ Error generating token: {e}")
-        return jsonify({'message': 'Token generation failed'}), 500
+    # If credentials are correct, create the JWT
+    token = jwt.encode({
+        'sub': user_data['id'],  # 'sub' is standard for "subject" (the user ID)
+        'iat': datetime.now(timezone.utc), # 'iat' is "issued at"
+        'exp': datetime.now(timezone.utc) + timedelta(hours=24) # 'exp' is "expiration time"
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({'token': token})
+
 
 @app.route('/download_pdf/<filename>', methods=['GET'])
 def download_pdf(filename):
+    # This route might not need protection if PDFs are meant to be public links
     file_path = os.path.join(PDF_DIRECTORY, filename)
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
@@ -169,13 +119,17 @@ def download_pdf(filename):
 
 @app.route('/uploads/<path:filename>', methods=['GET'])
 def serve_image(filename):
+    # This route should also be protected to prevent unauthorized image access
     return send_from_directory(UPLOAD_FOLDER, filename)
 
+
+## JWT: Add the @token_required decorator to all routes that need protection.
 @app.route('/upload', methods=['POST'])
 @token_required
 def upload_files(current_user):
     global stored_results
     stored_results = []
+    # (The rest of your upload logic remains the same)
     student_name = request.form.get('studentName')
     student_class = request.form.get('studentClass')
     subject = request.form.get('subject')
@@ -229,6 +183,7 @@ def get_results(current_user):
 @app.route('/retry_image', methods=['POST'])
 @token_required
 def retry_image(current_user):
+    # (The rest of your retry logic remains the same)
     data = request.get_json()
     if not data or 'image' not in data:
         return jsonify({'error': 'No image provided'}), 400
@@ -258,6 +213,7 @@ def retry_image(current_user):
 @app.route('/generate_pdf', methods=['POST'])
 @token_required
 def generate_pdf(current_user):
+    # (The rest of your generate_pdf logic remains the same)
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data received'}), 400
@@ -297,6 +253,7 @@ def generate_pdf(current_user):
 @app.route('/get_improvements', methods=['POST'])
 @token_required
 def get_improvements(current_user):
+    # (The rest of your improvements logic remains the same)
     data = request.get_json()
     if not data or 'text' not in data: return jsonify({'error': 'No text provided'}), 400
     text = data['text']
@@ -314,6 +271,7 @@ def get_improvements(current_user):
 @app.route("/improvements_pdf", methods=["POST"])
 @token_required
 def improvements_pdf(current_user):
+    # (The rest of your improvements_pdf logic remains the same)
     data = request.get_json()
     if not data: return jsonify({"error": "No data provided"}), 400
     text = data.get("text", "")
@@ -359,4 +317,5 @@ def improvements_pdf(current_user):
     return jsonify({"pdfPath": os.path.basename(filename)})
 
 if __name__ == '__main__':
+    ## JWT: Run the app on a different port if you want, e.g., 5001
     app.run(host='0.0.0.0', port=5000, debug=True)
