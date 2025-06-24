@@ -24,18 +24,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 load_dotenv(env_path)
 
-# Debug environment variables
-print("=== ENVIRONMENT VARIABLES DEBUG ===")
-print(f"Looking for .env at: {env_path}")
-print(f".env file exists: {os.path.exists(env_path)}")
 
 teacher_email = os.getenv("TEACHER_EMAIL")
 teacher_password = os.getenv("TEACHER_PASSWORD")
 teacher_id = os.getenv("TEACHER_ID")
 
-print(f"TEACHER_EMAIL: '{teacher_email}'")
-print(f"TEACHER_PASSWORD: '{teacher_password}'")
-print(f"TEACHER_ID: '{teacher_id}'")
 
 if not teacher_email or not teacher_password or not teacher_id:
     print("❌ ERROR: One or more environment variables are None!")
