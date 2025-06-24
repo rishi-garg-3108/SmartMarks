@@ -10,20 +10,21 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=traefik"
       - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"
-      - "--entryPoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entryPoints.web.http.redirections.entrypoint.scheme=https"
-      - "--entryPoints.web.http.redirections.entrypoint.permanent=true"
-      - "--certificatesresolvers.myresolver.acme.email=info@deep-research.eu"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.myresolver.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+      # Remove HTTPS redirect for local development
+      # - "--entryPoints.websecure.address=:443"
+      # - "--entryPoints.web.http.redirections.entrypoint.to=websecure"
+      # - "--entryPoints.web.http.redirections.entrypoint.scheme=https"
+      # - "--entryPoints.web.http.redirections.entrypoint.permanent=true"
+      # - "--certificatesresolvers.myresolver.acme.email=info@deep-research.eu"
+      # - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      # - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      # - "--certificatesresolvers.myresolver.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
     ports:
       - "80:80"
-      - "443:443"
+      # - "443:443"  # Comment out for local development
       - "8080:8080"
     volumes:
-      - letsencrypt:/letsencrypt
+      # - letsencrypt:/letsencrypt  # Comment out for local development
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - traefik
@@ -33,7 +34,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        NEXT_PUBLIC_API_URL: https://localhost
+        NEXT_PUBLIC_API_URL: http://localhost/api  # Changed to HTTP and added /api
     restart: unless-stopped
     depends_on:
       - backend
@@ -43,8 +44,8 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend.entrypoints=web"  # Changed from websecure to web
+      # - "traefik.http.routers.frontend.tls.certresolver=myresolver"  # Commented out
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
       - "traefik.http.routers.frontend.priority=1"
 
@@ -64,8 +65,8 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
       - "traefik.http.routers.backend.rule=Host(`localhost`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=myresolver"
+      - "traefik.http.routers.backend.entrypoints=web"  # Changed from websecure to web
+      # - "traefik.http.routers.backend.tls.certresolver=myresolver"  # Commented out
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
       - "traefik.http.routers.backend.priority=10"
       - "traefik.http.middlewares.backend-stripprefix.stripprefix.prefixes=/api"
@@ -79,5 +80,5 @@ networks:
     driver: bridge
     external: false
 
-volumes:
-  letsencrypt:
+# volumes:
+#   letsencrypt:  # Commented out for local development
