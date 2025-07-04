@@ -97,10 +97,20 @@ export default function ImprovementsPage() {
     setParsedSuggestions(null);
     setPdfUrl(null);
 
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     try {
-      const res = await fetch('http://127.0.0.1:5000/get_improvements', {
+      const res = await fetch('http://localhost/api/get_improvements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add JWT token here
+        },
         body: JSON.stringify({ text: originalText }),
       });
       if (!res.ok) throw new Error('Request failed');
@@ -120,15 +130,25 @@ export default function ImprovementsPage() {
     setPdfGenerating(true);
     setError(null);
 
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     try {
-      const res = await fetch('http://127.0.0.1:5000/improvements_pdf', {
+      const res = await fetch('http://localhost/api/improvements_pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add JWT token here
+        },
         body: JSON.stringify({ text: originalText, improvements }),
       });
       if (!res.ok) throw new Error('PDF generation failed');
       const data: PdfResponse = await res.json();
-      setPdfUrl(`http://127.0.0.1:5000/download_pdf/${data.pdfPath}`);
+      setPdfUrl(`http://localhost/api/download_pdf/${data.pdfPath}`);
     } catch (err) {
       console.error(err);
       setError('PDF generation failed. Please try again.');

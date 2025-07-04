@@ -99,7 +99,7 @@ export default function GradePage() {
     const token = localStorage.getItem('jwt_token');
   
     try {
-      const response = await fetch("http://127.0.0.1:5000/upload", {
+      const response = await fetch("http://localhost/api/upload", {
         method: "POST",
         // JWT: Add the Authorization header to the request
         headers: {

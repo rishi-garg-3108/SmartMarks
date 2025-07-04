@@ -42,7 +42,7 @@ os.makedirs(PDF_WORD_DIRECTORY, exist_ok=True)
 ## In a real app, this would be a database (like PostgreSQL or MongoDB).
 ## The password 'testpassword' is hashed for security.
 users = {
-    "teacher@example.com": {
+    "teacherdom": {
         "password": generate_password_hash("testpassword", method='pbkdf2:sha256'),
         "id": "1"
     }
