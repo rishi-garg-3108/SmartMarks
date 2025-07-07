@@ -45,7 +45,7 @@ export default function Header() {
           <ul className="flex space-x-4">
             <li><Link href="/features" className="text-foreground hover:text-primary">{t.features}</Link></li>
             <li><Link href="#" className="text-foreground hover:text-primary">{t.pricing}</Link></li>
-            <li><Link href="/improvements" className="text-foreground hover:text-primary">Improvements</Link></li>
+            <li><Link href="/improvements" className="text-foreground hover:text-primary">{t.improvements}</Link></li>
           </ul>
         </nav>
 
