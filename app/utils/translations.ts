@@ -2,6 +2,7 @@ export const translations = {
   en: {
     features: "Features",
     pricing: "Pricing",
+    improvements: "Improvements",
     loginSignup: "Login / Sign Up",
     marksExams: "Marks your Exams or Assignments smartly",
     smartMarksDescription:
@@ -73,6 +74,7 @@ export const translations = {
   de: {
     features: "Funktionen",
     pricing: "Preise",
+    improvements: "Verbesserungen",
     loginSignup: "Anmelden / Registrieren",
     marksExams: "Bewertet Ihre Prüfungen oder Aufgaben intelligent",
     smartMarksDescription:
