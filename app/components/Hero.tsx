@@ -35,7 +35,7 @@ export default function Hero() {
           <p className="text-xl mb-6 text-muted-foreground">{t.smartMarksDescription}</p>
           <Button onClick={handleStartGrading}>{t.getStarted}</Button>
         </div>
-      </div>
+      </div> 
     </section>
   )
 }
