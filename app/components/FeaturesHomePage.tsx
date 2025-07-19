@@ -12,18 +12,18 @@ const features = [
   },
   {
     icon: <CheckCircle className="h-8 w-8 text-primary" />,
-    titleKey: "accurate",
-    descriptionKey: "accurateDesc",
+    titleKey: "accurate" as const,
+    descriptionKey: "accurateDesc" as const,
   },
   {
     icon: <Sliders className="h-8 w-8 text-primary" />,
-    titleKey: "customizable",
-    descriptionKey: "customizableDesc",
+    titleKey: "customizable" as const,
+    descriptionKey: "customizableDesc" as const,
   },
   {
     icon: <Layers className="h-8 w-8 text-primary" />,
-    titleKey: "seamless",
-    descriptionKey: "seamlessDesc",
+    titleKey: "seamless" as const,
+    descriptionKey: "seamlessDesc" as const,
   },
 ]
 
@@ -50,4 +50,3 @@ export default function FeaturesHomePage() {
     </section>
   )
 }
-
