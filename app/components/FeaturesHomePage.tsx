@@ -7,8 +7,8 @@ import { translations } from "../utils/translations"
 const features = [
   {
     icon: <Clock className="h-8 w-8 text-primary" />,
-    titleKey: "timeSaving",
-    descriptionKey: "timeSavingDesc",
+    titleKey: "timeSaving" as const,
+    descriptionKey: "timeSavingDesc" as const,
   },
   {
     icon: <CheckCircle className="h-8 w-8 text-primary" />,
