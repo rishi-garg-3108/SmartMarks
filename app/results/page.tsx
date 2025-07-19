@@ -5,7 +5,6 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../utils/translations";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import EmailForm from "../components/EmailForm";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
